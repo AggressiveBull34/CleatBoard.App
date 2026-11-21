@@ -1,4 +1,4 @@
-# Soccer Sub Manager — installable app
+# CleatBoard.App — installable app
 
 This folder is the complete app. Put it on any website with HTTPS and coaches can install it on their tablet's home screen. It then opens full screen and works offline at the field.
 
