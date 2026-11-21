@@ -1,4 +1,4 @@
-/* Soccer Sub Manager — offline support.
+/* CleatBoard.App — offline support.
    Bump VERSION whenever you upload a new build so coaches get the "new version" banner. */
 const VERSION = '1.0.2';
 const APP_CACHE = `ssm-app-${VERSION}`;
@@ -44,7 +44,7 @@ async function handleNavigation(request) {
   try {
     return await fetch(request);
   } catch (error) {
-    return new Response('Soccer Sub Manager is offline and not cached yet. Open it once with a connection.', {
+    return new Response('CleatBoard.App is offline and not cached yet. Open it once with a connection.', {
       status: 503,
       headers: { 'Content-Type': 'text/plain' }
     });
