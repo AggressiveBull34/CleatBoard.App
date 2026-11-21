@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Soccer Sub Manager",
-  "short_name": "Sub Manager",
+  "name": "CleatBoard.App",
+  "short_name": "CleatBoard",
   "description": "Sideline lineups, substitutions and playing time for youth soccer coaches.",
   "start_url": "./",
   "scope": "./",
