@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>CleatBoard.App</title>
+  <title>CleatBoard</title>
   <meta name="description" content="Sideline lineups, substitutions and playing time for youth soccer coaches." />
   <meta name="theme-color" content="#24552f" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Sub Manager" />
+  <meta name="apple-mobile-web-app-title" content="CleatBoard" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -1206,8 +1206,8 @@
           </svg>
         </div>
         <div>
-          <h1>Soccer Sub Manager</h1>
-          <p id="headerTeamName">Sideline lineup and substitution tool</p>
+          <h1>CleatBoard.App</h1>
+          <p id="headerTeamName">Soccer Coach: Sideline lineup and substitution tool</p>
         </div>
       </div>
       <div class="header-actions">
@@ -1238,7 +1238,7 @@
         <button class="btn btn-primary" id="updateReloadBtn" type="button">Update Now</button>
       </div>
       <div class="app-banner" id="installBanner" hidden>
-        <div class="banner-text"><strong>Install Sub Manager on this tablet</strong><span id="installText"></span></div>
+        <div class="banner-text"><strong>Install CleatBoard on this tablet</strong><span id="installText"></span></div>
         <button class="btn btn-primary" id="installBtn" type="button" hidden>Install App</button>
         <button class="btn btn-secondary" id="installDismissBtn" type="button">Not now</button>
       </div>
@@ -3366,8 +3366,8 @@
 
     function parseBackup(text) {
       let data;
-      try { data = JSON.parse(text); } catch (error) { throw new Error('That file isn’t a Soccer Sub Manager backup.'); }
-      if (!data || data.app !== BACKUP_APP_ID || !Array.isArray(data.teams)) throw new Error('That file isn’t a Soccer Sub Manager backup.');
+      try { data = JSON.parse(text); } catch (error) { throw new Error('That file isn’t a CleatBoard backup.'); }
+      if (!data || data.app !== BACKUP_APP_ID || !Array.isArray(data.teams)) throw new Error('That file isn’t a CleatBoard backup.');
       if (data.formatVersion > BACKUP_FORMAT) throw new Error('This backup was made by a newer version of the app. Update the app first.');
       const normalized = normalizeTeamsData({ activeId: data.activeId, teams: data.teams });
       if (!normalized) throw new Error('This backup has no teams in it.');
@@ -3695,7 +3695,7 @@
 
     /* ---------- Installable app: offline support, install prompt, updates ---------- */
     const APP_VERSION = '1.0.2';
-    document.getElementById('appVersion').textContent = `Soccer Sub Manager · version ${APP_VERSION}`;
+    document.getElementById('appVersion').textContent = `CleatBoard · version ${APP_VERSION}`;
 
     const installEls = {
       banner: document.getElementById('installBanner'),
@@ -3733,7 +3733,7 @@
     window.addEventListener('appinstalled', () => {
       installEls.banner.hidden = true;
       deferredInstallPrompt = null;
-      showToast('Sub Manager installed');
+      showToast('CleatBoard installed');
     });
     installEls.button.addEventListener('click', async () => {
       if (!deferredInstallPrompt) return;
