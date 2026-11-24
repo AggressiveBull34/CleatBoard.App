@@ -1690,22 +1690,7 @@
     }))
   };
 }
-    function loadLegacyTeams() {
-      try {
-        const raw = readStorage(TEAMS_STORAGE_KEY);
-        const parsed = raw ? normalizeTeamsData(JSON.parse(raw)) : null;
-        if (parsed) return parsed;
-      } catch (error) { /* fall through to defaults */ }
-      // A brand-new install starts with one empty team for the coach to name and fill in.
-      let players = [];
-      try {
-        const legacy = JSON.parse(readStorage(LEGACY_ROSTER_KEY) || 'null');
-        if (Array.isArray(legacy)) players = legacy.filter(p => typeof p === 'string');
-      } catch (error) { /* ignore */ }
-      const team = makeTeam('My Team', players, '7v7');
-      return { activeId: team.id, teams: [team] };
-    }
-
+    
     /* ---------- Storage layer ----------
        Every save and load goes through Store. It uses the browser's IndexedDB database,
        falls back to localStorage, then to memory. A native app build only needs to swap
@@ -3729,7 +3714,7 @@
 
     /* ---------- Installable app: offline support, install prompt, updates ---------- */
     const APP_VERSION = '1.0.2';
-    document.getElementById('appVersion').textContent = `CleatBoard · version ${APP_VERSION}`;
+    document.getElementById('appVersion').textContent = `Cleat Board · version ${APP_VERSION}`;
 
     const installEls = {
       banner: document.getElementById('installBanner'),
