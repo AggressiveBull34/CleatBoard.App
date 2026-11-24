@@ -1,6 +1,6 @@
 /* Cleat Board — offline support.
    Bump VERSION whenever you upload a new build so coaches get the "new version" banner. */
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 const APP_CACHE = `ssm-app-${VERSION}`;
 const FONT_CACHE = 'ssm-fonts';
 const LIB_CACHE = 'cb-libs';

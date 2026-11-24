@@ -1206,7 +1206,16 @@
       background: var(--bg);
       overflow-y: auto;
     }
-    .cb-gate[hidden], .cb-gate-view[hidden] { display: none !important; }
+    .cb-gate[hidden], .cb-gate-view[hidden], .cb-gate-form[hidden] { display: none !important; }
+    .cb-gate-form input.cb-code-input {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.35em;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .cb-gate-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .cb-gate-links .btn { flex: 1 1 150px; min-height: 44px; padding: 8px 14px; font-size: 0.9rem; }
     .cb-gate-card {
       width: 100%;
       max-width: 420px;
@@ -1237,10 +1246,19 @@
     <div class="panel cb-gate-card">
       <div class="cb-gate-view" id="gateLogin">
         <h2>Sign in to Cleat Board</h2>
-        <p class="note">Enter the email you used to subscribe. We'll send you a sign-in link.</p>
+        <p class="note" id="loginIntro">Enter the email you used to subscribe. We'll email you a 6-digit sign-in code.</p>
         <form class="cb-gate-form" id="loginForm" novalidate>
           <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@email.com" />
-          <button id="loginBtn" class="btn btn-primary" type="submit">Email me a sign-in link</button>
+          <button id="loginBtn" class="btn btn-primary" type="submit">Email me a sign-in code</button>
+        </form>
+        <!-- Step 2: type the code from the email. Works on iPad home-screen apps, where email links open in Safari instead. -->
+        <form class="cb-gate-form" id="codeForm" novalidate hidden>
+          <input id="loginCode" class="cb-code-input" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="10" placeholder="123456" aria-label="Sign-in code" />
+          <button id="codeBtn" class="btn btn-primary" type="submit">Sign in</button>
+          <div class="cb-gate-links">
+            <button class="btn btn-secondary" id="resendCodeBtn" type="button">Send a new code</button>
+            <button class="btn btn-secondary" id="changeEmailBtn" type="button">Use a different email</button>
+          </div>
         </form>
         <p id="loginMsg" class="note cb-gate-msg" role="status"></p>
       </div>
@@ -4107,7 +4125,7 @@
     });
 
     /* ---------- Installable app: offline support, install prompt, updates ---------- */
-    const APP_VERSION = '1.1.0';
+    const APP_VERSION = '1.1.1';
     document.getElementById('appVersion').textContent = `Cleat Board · version ${APP_VERSION}`;
 
     const installEls = {
@@ -4237,6 +4255,12 @@
       email: document.getElementById('loginEmail'),
       loginBtn: document.getElementById('loginBtn'),
       loginMsg: document.getElementById('loginMsg'),
+      intro: document.getElementById('loginIntro'),
+      codeForm: document.getElementById('codeForm'),
+      code: document.getElementById('loginCode'),
+      codeBtn: document.getElementById('codeBtn'),
+      resendBtn: document.getElementById('resendCodeBtn'),
+      changeEmailBtn: document.getElementById('changeEmailBtn'),
       subscribeText: document.getElementById('subscribeText'),
       subscribeLink: document.getElementById('subscribeLink'),
       subscribeMsg: document.getElementById('subscribeMsg'),
@@ -4260,7 +4284,9 @@
       gateEls.login.hidden = view !== 'login';
       gateEls.subscribe.hidden = view !== 'subscribe';
       if (view === 'login') {
-        setGateMessage(gateEls.loginMsg, message || '');
+        const pending = readPendingSignIn();
+        showLoginStep(pending ? 'code' : 'email', pending && pending.email);
+        if (message) setGateMessage(gateEls.loginMsg, message);
       } else {
         const info = Subscription.info;
         const email = Cloud.user && Cloud.user.email ? Cloud.user.email : 'this email';
@@ -4278,24 +4304,108 @@
       gateEls.gate.hidden = true;
     }
 
-    gateEls.form.addEventListener('submit', async event => {
-      event.preventDefault();
-      const email = gateEls.email.value.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setGateMessage(gateEls.loginMsg, 'Enter a valid email address.', 'error'); return; }
-      if (!sb || navigator.onLine === false) { setGateMessage(gateEls.loginMsg, 'Connect to the internet to sign in, then try again.', 'error'); return; }
-      gateEls.loginBtn.disabled = true;
-      setGateMessage(gateEls.loginMsg, 'Sending\u2026');
+    /* Two-step sign-in: email, then the code from the email. The same email also has a sign-in link,
+       which still works in a regular browser. The step survives the app closing while the coach checks email. */
+    const EMAIL_CODE_LENGTH = 6;   // match Authentication → Sign In / Providers → Email → Email OTP Length
+    const PENDING_SIGNIN_KEY = 'cbPendingSignIn';
+
+    function readPendingSignIn() {
+      try {
+        const pending = JSON.parse(window.localStorage.getItem(PENDING_SIGNIN_KEY) || 'null');
+        return pending && pending.email && Date.now() - pending.at < 3600000 ? pending : null;
+      } catch (error) { return null; }
+    }
+    function savePendingSignIn(email) {
+      try { window.localStorage.setItem(PENDING_SIGNIN_KEY, JSON.stringify({ email, at: Date.now() })); } catch (error) { /* ignore */ }
+    }
+    function clearPendingSignIn() {
+      try { window.localStorage.removeItem(PENDING_SIGNIN_KEY); } catch (error) { /* ignore */ }
+    }
+
+    function showLoginStep(step, email) {
+      const codeStep = step === 'code';
+      gateEls.form.hidden = codeStep;
+      gateEls.codeForm.hidden = !codeStep;
+      gateEls.intro.textContent = codeStep
+        ? `We emailed a sign-in code to ${email}. Enter it below. It can take a minute to arrive, so check spam too.`
+        : 'Enter the email you used to subscribe. We\u2019ll email you a 6-digit sign-in code.';
+      setGateMessage(gateEls.loginMsg, '');
+      if (codeStep) {
+        gateEls.code.value = '';
+        setTimeout(() => gateEls.code.focus(), 50);
+      } else if (email) {
+        gateEls.email.value = email;
+      }
+    }
+
+    async function sendSignInEmail(email) {
+      if (!sb || navigator.onLine === false) { setGateMessage(gateEls.loginMsg, 'Connect to the internet to sign in, then try again.', 'error'); return false; }
       const { error } = await sb.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: window.location.origin + window.location.pathname }
       });
-      gateEls.loginBtn.disabled = false;
       if (error) {
         const tooMany = error.status === 429 || /rate limit|security purposes/i.test(error.message || '');
-        setGateMessage(gateEls.loginMsg, tooMany ? 'Too many sign-in emails just now. Wait a minute, then try again.' : error.message, 'error');
+        setGateMessage(gateEls.loginMsg, tooMany ? 'A code was sent less than a minute ago. Wait a minute, then try again.' : error.message, 'error');
+        return false;
+      }
+      return true;
+    }
+
+    gateEls.form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const email = gateEls.email.value.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setGateMessage(gateEls.loginMsg, 'Enter a valid email address.', 'error'); return; }
+      gateEls.loginBtn.disabled = true;
+      setGateMessage(gateEls.loginMsg, 'Sending\u2026');
+      const sent = await sendSignInEmail(email);
+      gateEls.loginBtn.disabled = false;
+      if (!sent) return;
+      savePendingSignIn(email);
+      showLoginStep('code', email);
+    });
+
+    async function verifyCode() {
+      const pending = readPendingSignIn();
+      if (!pending) { showLoginStep('email'); setGateMessage(gateEls.loginMsg, 'That code has expired. Enter your email to get a new one.', 'error'); return; }
+      const token = gateEls.code.value.replace(/\D/g, '');
+      if (token.length < 6) { setGateMessage(gateEls.loginMsg, `Enter the ${EMAIL_CODE_LENGTH}-digit code from the email.`, 'error'); return; }
+      if (!sb || navigator.onLine === false) { setGateMessage(gateEls.loginMsg, 'Connect to the internet to sign in, then try again.', 'error'); return; }
+      gateEls.codeBtn.disabled = true;
+      setGateMessage(gateEls.loginMsg, 'Signing in\u2026');
+      const { error } = await sb.auth.verifyOtp({ email: pending.email, token, type: 'email' });
+      gateEls.codeBtn.disabled = false;
+      if (error) {
+        const expired = error.code === 'otp_expired' || /expired|invalid/i.test(error.message || '');
+        setGateMessage(gateEls.loginMsg, expired ? 'That code didn\u2019t work. Check it, or tap Send a new code. Only the newest code works.' : error.message, 'error');
+        gateEls.code.select();
         return;
       }
-      setGateMessage(gateEls.loginMsg, `Check ${email} for your sign-in link. Open it on this device.`);
+      // onAuthStateChange fires SIGNED_IN, which opens the app.
+      clearPendingSignIn();
+      setGateMessage(gateEls.loginMsg, 'Signed in.');
+    }
+
+    gateEls.codeForm.addEventListener('submit', event => { event.preventDefault(); verifyCode(); });
+    gateEls.code.addEventListener('input', () => {
+      const digits = gateEls.code.value.replace(/\D/g, '').slice(0, 10);
+      if (digits !== gateEls.code.value) gateEls.code.value = digits;
+      if (digits.length === EMAIL_CODE_LENGTH && !gateEls.codeBtn.disabled) verifyCode();
+    });
+    gateEls.resendBtn.addEventListener('click', async () => {
+      const pending = readPendingSignIn();
+      if (!pending) { showLoginStep('email'); return; }
+      gateEls.resendBtn.disabled = true;
+      setGateMessage(gateEls.loginMsg, 'Sending a new code\u2026');
+      const sent = await sendSignInEmail(pending.email);
+      gateEls.resendBtn.disabled = false;
+      if (sent) { savePendingSignIn(pending.email); gateEls.code.value = ''; setGateMessage(gateEls.loginMsg, 'New code sent. Use the newest email.'); }
+    });
+    gateEls.changeEmailBtn.addEventListener('click', () => {
+      const pending = readPendingSignIn();
+      clearPendingSignIn();
+      showLoginStep('email', pending && pending.email);
+      gateEls.email.focus();
     });
 
     let signedInFor = null;
@@ -4304,6 +4414,7 @@
     async function afterLogin(user) {
       if (signedInFor === user.id) return;
       signedInFor = user.id;
+      clearPendingSignIn();
       await booted;
       await Cloud.adoptUser(user);
       await Subscription.load();
