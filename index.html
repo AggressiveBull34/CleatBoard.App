@@ -1677,6 +1677,19 @@
     }
 
     /* Older versions kept teams in localStorage. Used only to migrate into the database on first launch. */
+    async function loadTeamsRemote() {
+  const { data: teams, error } = await sb.from('teams')
+    .select('id, name, players(id, name, sort_order)')
+    .order('created_at');
+  if (error || !teams.length) return null;
+  return {
+    activeId: localStorage.getItem('cbActiveTeam') || teams[0].id,
+    teams: teams.map(t => ({
+      id: t.id, name: t.name,
+      players: t.players.sort((a,b)=>a.sort_order-b.sort_order).map(p => p.name)
+    }))
+  };
+}
     function loadLegacyTeams() {
       try {
         const raw = readStorage(TEAMS_STORAGE_KEY);
@@ -1824,9 +1837,25 @@
       showToast("Couldn't save to this device. Back up your teams now.", 'error');
     }
 
-    function persistTeams() {
-      Store.set('teams', teamsData).catch(reportSaveError);
-    }
+    async function saveTeamRemote(team) {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  const isUuid = /^[0-9a-f-]{36}$/.test(team.id);
+  if (!isUuid) {
+    const { data } = await sb.from('teams')
+      .insert({ owner_id: user.id, name: team.name }).select().single();
+    team.id = data.id;
+    if (teamsData.activeId !== data.id && !teamsData.teams.some(t => t.id === data.id)) teamsData.activeId = data.id;
+  } else {
+    await sb.from('teams').update({ name: team.name }).eq('id', team.id);
+  }
+  await sb.from('players').delete().eq('team_id', team.id);
+  if (team.players.length) {
+    await sb.from('players').insert(team.players.map((name, i) => ({
+      team_id: team.id, owner_id: user.id, name, sort_order: i
+    })));
+  }
+}
 
     function activeTeam() {
       return teamsData.teams.find(team => team.id === teamsData.activeId) || teamsData.teams[0];
