@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Cleat Board</title>
+  <!-- Sign-in and cloud sync library. Pinned so the offline cache in sw.js stays in step (update both together). -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.min.js"></script>
   <meta name="description" content="Sideline lineups, substitutions and playing time for soccer coaches." />
   <meta name="theme-color" content="#24552f" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="CleatBoard" />
+  <meta name="apple-mobile-web-app-title" content="Cleat Board" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
@@ -1192,18 +1193,69 @@
       .board-token .name { font-size: 0.7rem; padding: 2px 4px; }
       .swatch { width: 26px; height: 26px; }
     }
+
+    /* ---------- Sign-in and membership screen ---------- */
+    .cb-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: var(--bg);
+      overflow-y: auto;
+    }
+    .cb-gate[hidden], .cb-gate-view[hidden] { display: none !important; }
+    .cb-gate-card {
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      padding: 24px 20px;
+    }
+    .cb-gate-card h2 { margin: 0 0 8px; font-size: 1.35rem; letter-spacing: -0.02em; }
+    .cb-gate-form, .cb-gate-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .cb-gate-form input {
+      min-height: 48px;
+      padding: 10px 14px;
+      font: inherit;
+      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .cb-gate-form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .panel p.cb-gate-msg { margin: 12px 0 0; min-height: 1.3em; font-weight: 600; }
+    .cb-gate-msg.error { color: var(--danger) !important; }
+    a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+    a.btn[hidden], .btn[hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <div id="loginGate" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px;">
-  <div class="panel" style="max-width:380px;width:100%;text-align:center;">
-    <h2>Sign in to Cleat Board</h2>
-    <p class="note">Enter the email you used to subscribe. We'll send you a sign-in link.</p>
-    <input id="loginEmail" type="email" placeholder="you@email.com" style="width:100%;min-height:48px;margin:10px 0;padding:0 12px;">
-    <button id="loginBtn" class="primary" style="width:100%;min-height:48px;">Email me a sign-in link</button>
-    <p id="loginMsg" class="note"></p>
+  <!-- Sign-in and membership screen. Covers the app until the coach is signed in (and subscribed, when required). -->
+  <div id="loginGate" class="cb-gate" hidden>
+    <div class="panel cb-gate-card">
+      <div class="cb-gate-view" id="gateLogin">
+        <h2>Sign in to Cleat Board</h2>
+        <p class="note">Enter the email you used to subscribe. We'll send you a sign-in link.</p>
+        <form class="cb-gate-form" id="loginForm" novalidate>
+          <input id="loginEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="you@email.com" />
+          <button id="loginBtn" class="btn btn-primary" type="submit">Email me a sign-in link</button>
+        </form>
+        <p id="loginMsg" class="note cb-gate-msg" role="status"></p>
+      </div>
+      <div class="cb-gate-view" id="gateSubscribe" hidden>
+        <h2>Cleat Board membership needed</h2>
+        <p class="note" id="subscribeText"></p>
+        <div class="cb-gate-actions">
+          <a class="btn btn-primary" id="subscribeLink" href="#" target="_blank" rel="noopener">Subscribe to Cleat Board</a>
+          <button class="btn btn-secondary" id="recheckSubBtn" type="button">I've subscribed, check again</button>
+          <button class="btn btn-secondary" id="gateSignOutBtn" type="button">Sign out</button>
+        </div>
+        <p id="subscribeMsg" class="note cb-gate-msg" role="status"></p>
+      </div>
+    </div>
   </div>
-</div>
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -1248,7 +1300,7 @@
         <button class="btn btn-primary" id="updateReloadBtn" type="button">Update Now</button>
       </div>
       <div class="app-banner" id="installBanner" hidden>
-        <div class="banner-text"><strong>Install CleatBoard on this tablet</strong><span id="installText"></span></div>
+        <div class="banner-text"><strong>Install Cleat Board on this tablet</strong><span id="installText"></span></div>
         <button class="btn btn-primary" id="installBtn" type="button" hidden>Install App</button>
         <button class="btn btn-secondary" id="installDismissBtn" type="button">Not now</button>
       </div>
@@ -1340,6 +1392,16 @@
           </details>
           <p class="note roster-message" id="rosterMessage"></p>
           <div id="rosterList"></div>
+        </div>
+
+        <div class="panel team-section" id="accountPanel">
+          <h3>Account &amp; Sync</h3>
+          <div class="data-status" id="accountStatus"></div>
+          <div class="footer-actions">
+            <button class="btn btn-secondary" id="syncNowBtn" type="button">Sync Now</button>
+            <a class="btn btn-secondary" id="manageBillingLink" href="#" target="_blank" rel="noopener" hidden>Manage Billing</a>
+            <button class="btn btn-secondary" id="signOutBtn" type="button">Sign Out</button>
+          </div>
         </div>
 
         <div class="panel team-section">
@@ -1565,7 +1627,22 @@
   </div>
 
   <script>
-    const sb = supabase.createClient('https://uawibbrxrweitlfhednp.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhd2liYnJ4cndlaXRsZmhlZG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyNzkwMjgsImV4cCI6MjExMDg1NTAyOH0.h1OiaiDDBn8CxjgOibhUUHx7-ZSyYPHYA83pWRNqlmI');
+    /* ---------- Cleat Board settings ---------- */
+    const SUPABASE_URL = 'https://uawibbrxrweitlfhednp.supabase.co';
+    // The public "anon" key. Safe in the app because row-level security protects the data. Never put the service_role key here.
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhd2liYnJ4cndlaXRsZmhlZG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyNzkwMjgsImV4cCI6MjExMDg1NTAyOH0.h1OiaiDDBn8CxjgOibhUUHx7-ZSyYPHYA83pWRNqlmI';
+    // Turn this on once the Stripe webhook is filling the subscriptions table. While false, signed-in coaches
+    // can use the app without a membership (the status still shows in Account & Sync).
+    const REQUIRE_SUBSCRIPTION = false;
+    // AWeber landing page where coaches buy the monthly plan.
+    const SUBSCRIBE_URL = '';
+    // Stripe customer portal login link (Stripe Dashboard → Settings → Billing → Customer portal). Leave blank to hide the button.
+    const BILLING_PORTAL_URL = '';
+    // How long a coach can keep using the app offline after the last successful membership check.
+    const OFFLINE_GRACE_DAYS = 7;
+    // If the sign-in library couldn't load (offline before it was cached), sb is null and the app keeps working on this device.
+    const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
     const TEAMS_STORAGE_KEY = 'soccerSubManagerTeams';
     const LEGACY_ROSTER_KEY = 'soccerSubManagerRoster';
 
@@ -1638,8 +1715,14 @@
       return FORMATION_PRESETS[getLevel(levelKey).key][0].keys.slice();
     }
 
+    /* IDs are UUIDs so a team keeps the same ID on every device and in Supabase. */
     function makeId() {
-      return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+      const bytes = window.crypto.getRandomValues(new Uint8Array(16));
+      bytes[6] = (bytes[6] & 15) | 64;
+      bytes[8] = (bytes[8] & 63) | 128;
+      const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
     }
 
     function makeTeam(name, players = [], levelKey = DEFAULT_LEVEL) {
@@ -1686,20 +1769,22 @@
     }
 
     /* Older versions kept teams in localStorage. Used only to migrate into the database on first launch. */
-    async function loadTeamsRemote() {
-  const { data: teams, error } = await sb.from('teams')
-    .select('id, name, players(id, name, sort_order)')
-    .order('created_at');
-  if (error || !teams.length) return null;
-  return {
-    activeId: localStorage.getItem('cbActiveTeam') || teams[0].id,
-    teams: teams.map(t => ({
-      id: t.id, name: t.name,
-      players: t.players.sort((a,b)=>a.sort_order-b.sort_order).map(p => p.name)
-    }))
-  };
-}
-    
+    function loadLegacyTeams() {
+      try {
+        const raw = readStorage(TEAMS_STORAGE_KEY);
+        const parsed = raw ? normalizeTeamsData(JSON.parse(raw)) : null;
+        if (parsed) return parsed;
+      } catch (error) { /* fall through to defaults */ }
+      // A brand-new install starts with one empty team for the coach to name and fill in.
+      let players = [];
+      try {
+        const legacy = JSON.parse(readStorage(LEGACY_ROSTER_KEY) || 'null');
+        if (Array.isArray(legacy)) players = legacy.filter(p => typeof p === 'string');
+      } catch (error) { /* ignore */ }
+      const team = makeTeam('My Team', players, '7v7');
+      return { activeId: team.id, teams: [team] };
+    }
+
     /* ---------- Storage layer ----------
        Every save and load goes through Store. It uses the browser's IndexedDB database,
        falls back to localStorage, then to memory. A native app build only needs to swap
@@ -1831,30 +1916,328 @@
       showToast("Couldn't save to this device. Back up your teams now.", 'error');
     }
 
-    async function saveTeamRemote(team) {
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return;
-  const isUuid = /^[0-9a-f-]{36}$/.test(team.id);
-  if (!isUuid) {
-    const { data } = await sb.from('teams')
-      .insert({ owner_id: user.id, name: team.name }).select().single();
-    team.id = data.id;
-    if (teamsData.activeId !== data.id && !teamsData.teams.some(t => t.id === data.id)) teamsData.activeId = data.id;
-  } else {
-    await sb.from('teams').update({ name: team.name }).eq('id', team.id);
-  }
-  await sb.from('players').delete().eq('team_id', team.id);
-  if (team.players.length) {
-    await sb.from('players').insert(team.players.map((name, i) => ({
-      team_id: team.id, owner_id: user.id, name, sort_order: i
-    })));
-  }
-}
+    /* ---------- Cloud sync (Supabase): teams and players follow the coach to every device ----------
+       This device's database stays the main copy so the app works offline at the field.
+       Changes are pushed to Supabase a moment after they're saved, and pulled when the coach
+       signs in, taps Sync Now, or brings the app back to the foreground. Game history stays on the device. */
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    function cloudResult(response) {
+      if (response && response.error) throw response.error;
+      return response ? response.data : null;
+    }
+
+    const Cloud = {
+      user: null,
+      syncedIds: new Set(),   // team IDs this device knows are saved in Supabase
+      dirty: false,           // local changes not pushed yet
+      edits: 0,
+      owner: null,            // the Supabase user this device last synced with
+      lastSyncedAt: null,
+      status: 'off',          // off | syncing | synced | offline | error | schema | paywall
+      detail: '',
+      timer: null,
+      running: null,
+      rerun: null,
+      replaceLocal: false,
+      metaLoaded: false,
+
+      async loadMeta() {
+        if (this.metaLoaded) return;
+        try {
+          const meta = (await Store.get('cloudMeta')) || {};
+          this.syncedIds = new Set(meta.syncedIds || []);
+          this.dirty = Boolean(meta.dirty);
+          this.owner = meta.owner || null;
+          this.lastSyncedAt = meta.lastSyncedAt || null;
+        } catch (error) { /* start fresh */ }
+        this.metaLoaded = true;
+      },
+
+      saveMeta() {
+        return Store.set('cloudMeta', {
+          syncedIds: [...this.syncedIds], dirty: this.dirty, owner: this.owner, lastSyncedAt: this.lastSyncedAt
+        }).catch(() => {});
+      },
+
+      setStatus(status, detail = '') {
+        this.status = status;
+        this.detail = detail;
+        renderAccountPanel();
+      },
+
+      /* Called after every local save. */
+      queuePush() {
+        this.dirty = true;
+        this.edits += 1;
+        this.saveMeta();
+        if (!this.user) return;
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => this.sync({ pull: false }), 1500);
+      },
+
+      /* A different coach signed in on this device. */
+      async adoptUser(user) {
+        await this.loadMeta();
+        this.user = user;
+        if (this.owner && this.owner !== user.id) {
+          const copy = window.confirm('This device has teams from a different Cleat Board account.\n\nOK copies them into the account you just signed in with.\nCancel replaces them with this account\u2019s teams.');
+          this.syncedIds = new Set();
+          this.dirty = copy;
+          this.replaceLocal = !copy;
+        }
+        this.owner = user.id;
+        this.saveMeta();
+      },
+
+      async sync({ pull = true } = {}) {
+        if (!sb || !this.user) return;
+        if (this.running) {
+          this.rerun = { pull: pull || Boolean(this.rerun && this.rerun.pull) };
+          return this.running;
+        }
+        clearTimeout(this.timer);
+        this.running = (async () => {
+          if (navigator.onLine === false) { this.setStatus('offline'); return; }
+          this.setStatus('syncing');
+          try {
+            if (this.dirty && !this.replaceLocal) await this.push();
+            // Pulling can change the roster, so it waits until no game is open.
+            if (pull && !state.game) await this.pull();
+            this.lastSyncedAt = Date.now();
+            this.setStatus('synced');
+          } catch (error) {
+            this.handleError(error);
+          } finally {
+            this.saveMeta();
+          }
+        })();
+        try {
+          await this.running;
+        } finally {
+          this.running = null;
+          if (this.rerun) { const next = this.rerun; this.rerun = null; this.sync(next); }
+        }
+      },
+
+      handleError(error) {
+        console.warn('Cleat Board sync', error);
+        const message = String((error && (error.message || error.details)) || error || '');
+        const code = error && error.code;
+        if (code === '42703' || code === 'PGRST204' || (/column/i.test(message) && /does not exist|could not find/i.test(message))) {
+          this.setStatus('schema', 'Cloud sync is waiting on a database update. Run supabase/migrations/20261124_cleat_board_team_sync.sql in the Supabase SQL Editor.');
+        } else if (code === '42501' || /row-level security/i.test(message)) {
+          this.setStatus('paywall', 'Cloud sync needs an active Cleat Board membership. Your teams are still saved on this device.');
+        } else if (navigator.onLine === false || /fetch|network|load failed/i.test(message)) {
+          this.setStatus('offline');
+        } else {
+          this.setStatus('error', message);
+        }
+      },
+
+      /* Older builds made short IDs like "t1abc". Supabase needs UUIDs, so convert them once. */
+      async ensureUuids() {
+        const map = {};
+        teamsData.teams.forEach(team => {
+          if (!UUID_RE.test(team.id)) { map[team.id] = makeId(); team.id = map[team.id]; }
+        });
+        if (!Object.keys(map).length) return;
+        if (map[teamsData.activeId]) teamsData.activeId = map[teamsData.activeId];
+        let gamesChanged = false;
+        gamesCache.forEach(game => { if (map[game.teamId]) { game.teamId = map[game.teamId]; gamesChanged = true; } });
+        if (state.game && map[state.game.teamId]) state.game.teamId = map[state.game.teamId];
+        await Store.set('teams', teamsData);
+        if (gamesChanged) await Store.replaceGames(gamesCache);
+        if (state.game) saveActiveGameNow();
+      },
+
+      async push() {
+        await this.ensureUuids();
+        const editsAtStart = this.edits;
+        const uid = this.user.id;
+        const teams = JSON.parse(JSON.stringify(teamsData.teams));
+        const ids = teams.map(team => team.id);
+        const now = new Date().toISOString();
+        cloudResult(await sb.from('teams').upsert(teams.map((team, index) => ({
+          id: team.id,
+          owner_id: uid,
+          name: team.name,
+          level: team.level,
+          formation: team.formation,
+          sort_order: index,
+          updated_at: now
+        })), { onConflict: 'id' }));
+        // Rosters are small, so each push rewrites the players for these teams.
+        cloudResult(await sb.from('players').delete().in('team_id', ids));
+        const players = teams.flatMap(team => team.players.map((name, index) => ({
+          team_id: team.id, owner_id: uid, name, sort_order: index
+        })));
+        if (players.length) cloudResult(await sb.from('players').insert(players));
+        // Teams deleted on this device since the last sync.
+        const removed = [...this.syncedIds].filter(id => !ids.includes(id));
+        if (removed.length) cloudResult(await sb.from('teams').delete().in('id', removed));
+        this.syncedIds = new Set(ids);
+        this.dirty = this.edits !== editsAtStart;
+      },
+
+      async pull() {
+        const rows = cloudResult(await sb.from('teams')
+          .select('id, name, level, formation, sort_order, created_at, players(name, sort_order)')
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true })) || [];
+        const remote = rows.map(row => normalizeTeam({
+          id: row.id,
+          name: row.name,
+          level: row.level,
+          formation: row.formation,
+          players: (row.players || []).slice().sort((a, b) => a.sort_order - b.sort_order).map(p => p.name)
+        }));
+        const remoteIds = new Set(remote.map(team => team.id));
+        const before = JSON.stringify(teamsData);
+        const merged = remote.slice();
+        const sameName = (a, b) => a.name.trim().toLowerCase() === b.name.trim().toLowerCase();
+        const idMap = {};
+        let needsPush = false;
+
+        if (!this.replaceLocal) {
+          teamsData.teams.forEach(local => {
+            if (remoteIds.has(local.id)) return;          // the cloud copy wins
+            if (this.syncedIds.has(local.id)) return;     // deleted on another device
+            const twin = merged.find(team => sameName(team, local));
+            if (twin) {                                    // same team set up separately on this device
+              idMap[local.id] = twin.id;
+              local.players.forEach(player => {
+                if (!twin.players.some(p => p.toLowerCase() === player.toLowerCase())) { twin.players.push(player); needsPush = true; }
+              });
+              return;
+            }
+            // A brand-new device's empty starter team isn't worth uploading next to real teams.
+            if (remote.length && !local.players.length && local.name === 'My Team') return;
+            merged.push(local);                            // new on this device: upload it
+            needsPush = true;
+          });
+        }
+        if (!merged.length) { merged.push(makeTeam('My Team')); needsPush = true; }
+
+        if (Object.keys(idMap).length) {
+          gamesCache.forEach(game => { if (idMap[game.teamId]) game.teamId = idMap[game.teamId]; });
+          await Store.replaceGames(gamesCache);
+        }
+        const wantedId = idMap[teamsData.activeId] || teamsData.activeId;
+        const next = normalizeTeamsData({ activeId: merged.some(t => t.id === wantedId) ? wantedId : merged[0].id, teams: merged });
+        this.syncedIds = remoteIds;
+        this.replaceLocal = false;
+        if (JSON.stringify(next) !== before) {
+          teamsData = next;
+          await Store.set('teams', teamsData);
+          roster = activeTeam().players.slice();
+          positions = currentPositions();
+          if (!state.game) resetGameState();
+          renderAll();
+        }
+        if (needsPush) { this.dirty = true; await this.push(); }
+      }
+    };
+
+    /* ---------- Membership check (reads the subscriptions table the Stripe webhook keeps up to date) ---------- */
+    const Subscription = {
+      info: null,   // { active, status, periodEnd, checkedAt, userId }
+
+      async load() {
+        try { this.info = (await Store.get('subscriptionCache')) || null; } catch (error) { this.info = null; }
+      },
+
+      async check() {
+        if (sb && Cloud.user) {
+          try {
+            const rows = cloudResult(await sb.from('subscriptions')
+              .select('status, current_period_end, updated_at')
+              .order('updated_at', { ascending: false })) || [];
+            const now = Date.now();
+            const current = row => ['active', 'trialing'].includes(row.status) && (!row.current_period_end || Date.parse(row.current_period_end) > now);
+            // past_due means Stripe is still retrying the card, so the coach keeps access with a warning.
+            const best = rows.find(current) || rows.find(row => row.status === 'past_due') || rows[0] || null;
+            this.info = {
+              active: Boolean(best) && (current(best) || best.status === 'past_due'),
+              status: best ? best.status : 'none',
+              periodEnd: best ? best.current_period_end : null,
+              checkedAt: now,
+              userId: Cloud.user.id
+            };
+            Store.set('subscriptionCache', this.info).catch(() => {});
+          } catch (error) {
+            // Offline or Supabase unreachable: fall back to the last good check.
+            console.warn('Cleat Board membership check', error);
+          }
+        }
+        renderAccountPanel();
+        return this.allowed();
+      },
+
+      allowed() {
+        if (!REQUIRE_SUBSCRIPTION) return true;
+        const info = this.info;
+        if (!info || !info.active) return false;
+        if (Cloud.user && info.userId !== Cloud.user.id) return false;
+        return Date.now() - info.checkedAt < OFFLINE_GRACE_DAYS * 86400000;
+      },
+
+      due() {
+        return !this.info || Date.now() - this.info.checkedAt > 6 * 3600000;
+      }
+    };
+
+    function formatShortDate(value) {
+      const date = new Date(value);
+      return isNaN(date) ? '' : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function renderAccountPanel() {
+      const box = document.getElementById('accountStatus');
+      if (!box) return;
+      const user = Cloud.user;
+      const syncedAgo = Cloud.lastSyncedAt ? (Date.now() - Cloud.lastSyncedAt < 90000 ? 'just now' : `at ${new Date(Cloud.lastSyncedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`) : '';
+      const syncText = !user
+        ? (navigator.onLine === false ? 'Offline. Your teams are saved on this device.' : 'Not signed in. Your teams are saved on this device only.')
+        : {
+            off: 'Cloud sync is starting.',
+            syncing: 'Syncing your teams\u2026',
+            synced: `Teams and rosters synced ${syncedAgo}. They\u2019ll appear on any device where you sign in.`,
+            offline: 'Offline. Changes are saved on this device and will sync when you\u2019re back online.',
+            error: `Sync problem: ${escapeHtml(Cloud.detail)}`,
+            schema: escapeHtml(Cloud.detail),
+            paywall: escapeHtml(Cloud.detail)
+          }[Cloud.status];
+      const info = Subscription.info;
+      let memberText = '';
+      if (user && info && info.userId === user.id && (REQUIRE_SUBSCRIPTION || info.status !== 'none')) {
+        const end = formatShortDate(info.periodEnd);
+        memberText = {
+          active: `Membership: <strong>Active</strong>${end ? ` · renews ${end}` : ''}`,
+          trialing: `Membership: <strong>Free trial</strong>${end ? ` · ends ${end}` : ''}`,
+          past_due: 'Membership: <strong>Payment problem</strong> · update your card to keep Cleat Board',
+          canceled: `Membership: <strong>Canceled</strong>${end ? ` · ended ${end}` : ''}`,
+          none: 'Membership: <strong>None found</strong> for this email'
+        }[info.status] || `Membership: <strong>${escapeHtml(info.status)}</strong>`;
+      }
+      box.innerHTML = `
+        ${user ? `<div>Signed in as <strong>${escapeHtml(user.email || '')}</strong></div>` : ''}
+        ${memberText ? `<div>${memberText}</div>` : ''}
+        <div>${syncText}</div>`;
+      const signOutBtn = document.getElementById('signOutBtn');
+      const syncNowBtn = document.getElementById('syncNowBtn');
+      const billing = document.getElementById('manageBillingLink');
+      if (signOutBtn) signOutBtn.hidden = !user;
+      if (syncNowBtn) { syncNowBtn.hidden = !user; syncNowBtn.disabled = Cloud.status === 'syncing'; }
+      if (billing) { billing.hidden = !(user && BILLING_PORTAL_URL); if (BILLING_PORTAL_URL) billing.href = BILLING_PORTAL_URL; }
+    }
+
 
     function persistTeams() {
-  try { localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(teamsData)); } catch (e) {}
-  if (window.cbSignedIn) saveTeamRemote(activeTeam()).catch(console.warn);
-}
+      Store.set('teams', teamsData).catch(reportSaveError);
+      Cloud.queuePush();
+    }
+
     function activeTeam() {
       return teamsData.teams.find(team => team.id === teamsData.activeId) || teamsData.teams[0];
     }
@@ -3394,8 +3777,8 @@
 
     function parseBackup(text) {
       let data;
-      try { data = JSON.parse(text); } catch (error) { throw new Error('That file isn’t a CleatBoard backup.'); }
-      if (!data || data.app !== BACKUP_APP_ID || !Array.isArray(data.teams)) throw new Error('That file isn’t a CleatBoard backup.');
+      try { data = JSON.parse(text); } catch (error) { throw new Error('That file isn’t a Cleat Board backup.'); }
+      if (!data || data.app !== BACKUP_APP_ID || !Array.isArray(data.teams)) throw new Error('That file isn’t a Cleat Board backup.');
       if (data.formatVersion > BACKUP_FORMAT) throw new Error('This backup was made by a newer version of the app. Update the app first.');
       const normalized = normalizeTeamsData({ activeId: data.activeId, teams: data.teams });
       if (!normalized) throw new Error('This backup has no teams in it.');
@@ -3455,6 +3838,7 @@
       } catch (error) { reportSaveError(error); return; }
       teamsData = normalizeTeamsData(nextTeams);
       gamesCache = nextGames;
+      Cloud.queuePush();
       roster = activeTeam().players.slice();
       positions = currentPositions();
       resetGameState();
@@ -3488,6 +3872,7 @@
       renderRoster();
       renderPlayingTime();
       renderDataPanel();
+      renderAccountPanel();
       renderHistoryScreen();
       els.startGameBtn.textContent = gameHasProgress() ? 'Back to Game →' : 'Start Game →';
       saveActiveGameSoon();
@@ -3722,7 +4107,7 @@
     });
 
     /* ---------- Installable app: offline support, install prompt, updates ---------- */
-    const APP_VERSION = '1.0.2';
+    const APP_VERSION = '1.1.0';
     document.getElementById('appVersion').textContent = `Cleat Board · version ${APP_VERSION}`;
 
     const installEls = {
@@ -3761,7 +4146,7 @@
     window.addEventListener('appinstalled', () => {
       installEls.banner.hidden = true;
       deferredInstallPrompt = null;
-      showToast('CleatBoard installed');
+      showToast('Cleat Board installed');
     });
     installEls.button.addEventListener('click', async () => {
       if (!deferredInstallPrompt) return;
@@ -3841,7 +4226,161 @@
       }
     }
 
-    boot();
+    const booted = boot();
+
+    /* ---------- Sign-in (Supabase magic link) and membership gate ---------- */
+    const gateEls = {
+      gate: document.getElementById('loginGate'),
+      login: document.getElementById('gateLogin'),
+      subscribe: document.getElementById('gateSubscribe'),
+      form: document.getElementById('loginForm'),
+      email: document.getElementById('loginEmail'),
+      loginBtn: document.getElementById('loginBtn'),
+      loginMsg: document.getElementById('loginMsg'),
+      subscribeText: document.getElementById('subscribeText'),
+      subscribeLink: document.getElementById('subscribeLink'),
+      subscribeMsg: document.getElementById('subscribeMsg'),
+      recheckBtn: document.getElementById('recheckSubBtn'),
+      gateSignOutBtn: document.getElementById('gateSignOutBtn')
+    };
+    // supabase-js keeps the session in localStorage under this key.
+    const AUTH_STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+
+    function hasSavedSession() {
+      try { return Boolean(window.localStorage.getItem(AUTH_STORAGE_KEY)); } catch (error) { return false; }
+    }
+
+    function setGateMessage(el, text, tone) {
+      el.textContent = text || '';
+      el.classList.toggle('error', tone === 'error');
+    }
+
+    function showGate(view, message) {
+      gateEls.gate.hidden = false;
+      gateEls.login.hidden = view !== 'login';
+      gateEls.subscribe.hidden = view !== 'subscribe';
+      if (view === 'login') {
+        setGateMessage(gateEls.loginMsg, message || '');
+      } else {
+        const info = Subscription.info;
+        const email = Cloud.user && Cloud.user.email ? Cloud.user.email : 'this email';
+        let text = `We couldn\u2019t find an active Cleat Board membership for ${email}. If you already subscribed, sign in with the same email you used at checkout.`;
+        if (info && info.status === 'canceled') text = `Your Cleat Board membership for ${email} has ended. Subscribe again to pick up where you left off. Your teams are still saved.`;
+        if (info && info.active && Date.now() - info.checkedAt >= OFFLINE_GRACE_DAYS * 86400000) text = 'Connect to the internet so Cleat Board can confirm your membership. Your teams are still saved on this device.';
+        gateEls.subscribeText.textContent = text;
+        gateEls.subscribeLink.hidden = !SUBSCRIBE_URL;
+        if (SUBSCRIBE_URL) gateEls.subscribeLink.href = SUBSCRIBE_URL;
+        setGateMessage(gateEls.subscribeMsg, message || '');
+      }
+    }
+
+    function hideGate() {
+      gateEls.gate.hidden = true;
+    }
+
+    gateEls.form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const email = gateEls.email.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setGateMessage(gateEls.loginMsg, 'Enter a valid email address.', 'error'); return; }
+      if (!sb || navigator.onLine === false) { setGateMessage(gateEls.loginMsg, 'Connect to the internet to sign in, then try again.', 'error'); return; }
+      gateEls.loginBtn.disabled = true;
+      setGateMessage(gateEls.loginMsg, 'Sending\u2026');
+      const { error } = await sb.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.origin + window.location.pathname }
+      });
+      gateEls.loginBtn.disabled = false;
+      if (error) {
+        const tooMany = error.status === 429 || /rate limit|security purposes/i.test(error.message || '');
+        setGateMessage(gateEls.loginMsg, tooMany ? 'Too many sign-in emails just now. Wait a minute, then try again.' : error.message, 'error');
+        return;
+      }
+      setGateMessage(gateEls.loginMsg, `Check ${email} for your sign-in link. Open it on this device.`);
+    });
+
+    let signedInFor = null;
+
+    /* Runs once per sign-in: on page load with a saved session, or after the coach taps the email link. */
+    async function afterLogin(user) {
+      if (signedInFor === user.id) return;
+      signedInFor = user.id;
+      await booted;
+      await Cloud.adoptUser(user);
+      await Subscription.load();
+      if (!(await Subscription.check())) {
+        showGate('subscribe');
+        return;
+      }
+      hideGate();
+      renderAccountPanel();
+      Cloud.sync();
+    }
+
+    function handleAuthChange(event, session) {
+      if (session && session.user) {
+        Cloud.user = session.user;
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') afterLogin(session.user);
+        renderAccountPanel();
+        return;
+      }
+      // A returning coach opening the app offline keeps working from this device.
+      if (event === 'INITIAL_SESSION' && navigator.onLine === false && hasSavedSession()) {
+        Cloud.setStatus('offline');
+        Subscription.load().then(() => { if (!Subscription.allowed()) showGate('subscribe'); });
+        return;
+      }
+      signedInFor = null;
+      Cloud.user = null;
+      Cloud.setStatus('off');
+      showGate('login');
+    }
+
+    async function signOut() {
+      if (!window.confirm('Sign out of Cleat Board? Your teams and game history stay on this device.')) return;
+      if (Cloud.dirty) await Cloud.sync({ pull: false });
+      if (sb) await sb.auth.signOut({ scope: 'local' }).catch(() => {});
+      handleAuthChange('SIGNED_OUT', null);
+    }
+
+    gateEls.recheckBtn.addEventListener('click', async () => {
+      gateEls.recheckBtn.disabled = true;
+      setGateMessage(gateEls.subscribeMsg, 'Checking\u2026');
+      const allowed = await Subscription.check();
+      gateEls.recheckBtn.disabled = false;
+      if (allowed) {
+        hideGate();
+        Cloud.sync();
+        showToast('Membership confirmed. Welcome to Cleat Board');
+      } else {
+        showGate('subscribe', 'Still not active. It can take a minute after checkout, so try again shortly.');
+      }
+    });
+    gateEls.gateSignOutBtn.addEventListener('click', signOut);
+    document.getElementById('signOutBtn').addEventListener('click', signOut);
+    document.getElementById('syncNowBtn').addEventListener('click', async () => {
+      await Cloud.sync();
+      if (Cloud.status === 'synced') showToast('Teams synced');
+    });
+
+    // Re-sync and re-check the membership when the app comes back to the foreground or back online.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || !Cloud.user) return;
+      Cloud.sync();
+      if (Subscription.due()) Subscription.check().then(allowed => { if (!allowed) showGate('subscribe'); });
+    });
+    window.addEventListener('online', () => { if (Cloud.user) Cloud.sync(); });
+    window.addEventListener('offline', () => { if (Cloud.user) Cloud.setStatus('offline'); });
+
+    if (sb) {
+      // Don't await Supabase calls inside this callback (supabase-js can deadlock), so hand off with setTimeout.
+      sb.auth.onAuthStateChange((event, session) => setTimeout(() => handleAuthChange(event, session), 0));
+    } else if (hasSavedSession()) {
+      // The sign-in library couldn't load (offline before it was cached). Let a returning coach keep working.
+      Cloud.setStatus('offline');
+      booted.then(() => Subscription.load()).then(() => { if (!Subscription.allowed()) showGate('subscribe'); });
+    } else {
+      showGate('login', 'Connect to the internet to sign in.');
+    }
   </script>
 </body>
 </html>

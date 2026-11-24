@@ -17,4 +17,17 @@ Open the app once while online after installing so everything is saved for offli
 
 ## Where coach data lives
 
-Teams, game history and the game in progress stay on each tablet, in the app's own storage. Nothing is sent to your website. Coaches should use **Back Up All Teams** on the Team screen now and then, since deleting the app or clearing Safari data removes its storage.
+Coaches sign in with an emailed link (Supabase Auth). Teams, rosters, levels and formations are saved on the tablet first, so the app works offline at the field, then sync to Supabase so they show up on any device where the coach signs in. Game history and the game in progress stay on each tablet, so **Back Up All Teams** on the Team screen is still worth doing now and then.
+
+## Cleat Board settings (top of the script in index.html)
+
+- `REQUIRE_SUBSCRIPTION` – set to `true` once the Stripe webhook is filling the `subscriptions` table. While `false`, any signed-in coach can use the app.
+- `SUBSCRIBE_URL` – the AWeber landing page shown to coaches without an active membership.
+- `BILLING_PORTAL_URL` – the Stripe customer portal login link for the Manage Billing button.
+- `OFFLINE_GRACE_DAYS` – how long the app works offline after the last successful membership check.
+
+## Database
+
+Run `supabase/migrations/20261124_cleat_board_team_sync.sql` once in the Supabase SQL Editor. It adds the `level`, `formation`, `sort_order` and `updated_at` columns the app syncs.
+
+When you change the Supabase library version, update it in both `index.html` and `sw.js`, and bump `VERSION` in `sw.js` with every release.
