@@ -1195,6 +1195,15 @@
   </style>
 </head>
 <body>
+  <div id="loginGate" style="position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;align-items:center;justify-content:center;padding:20px;">
+  <div class="panel" style="max-width:380px;width:100%;text-align:center;">
+    <h2>Sign in to Cleat Board</h2>
+    <p class="note">Enter the email you used to subscribe. We'll send you a sign-in link.</p>
+    <input id="loginEmail" type="email" placeholder="you@email.com" style="width:100%;min-height:48px;margin:10px 0;padding:0 12px;">
+    <button id="loginBtn" class="primary" style="width:100%;min-height:48px;">Email me a sign-in link</button>
+    <p id="loginMsg" class="note"></p>
+  </div>
+</div>
   <div class="app">
     <header class="topbar">
       <div class="brand">
