@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>CleatBoard</title>
@@ -1555,7 +1556,7 @@
   </div>
 
   <script>
-
+    const sb = supabase.createClient('https://uawibbrxrweitlfhednp.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhd2liYnJ4cndlaXRsZmhlZG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyNzkwMjgsImV4cCI6MjExMDg1NTAyOH0.h1OiaiDDBn8CxjgOibhUUHx7-ZSyYPHYA83pWRNqlmI');
     const TEAMS_STORAGE_KEY = 'soccerSubManagerTeams';
     const LEGACY_ROSTER_KEY = 'soccerSubManagerRoster';
 
