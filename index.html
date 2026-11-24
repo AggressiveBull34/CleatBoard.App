@@ -1857,6 +1857,10 @@
   }
 }
 
+    function persistTeams() {
+  try { localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(teamsData)); } catch (e) {}
+  if (window.cbSignedIn) saveTeamRemote(activeTeam()).catch(console.warn);
+}
     function activeTeam() {
       return teamsData.teams.find(team => team.id === teamsData.activeId) || teamsData.teams[0];
     }
