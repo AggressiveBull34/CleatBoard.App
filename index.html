@@ -1649,11 +1649,11 @@
     const SUPABASE_URL = 'https://uawibbrxrweitlfhednp.supabase.co';
     // The public "anon" key. Safe in the app because row-level security protects the data. Never put the service_role key here.
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVhd2liYnJ4cndlaXRsZmhlZG5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUyNzkwMjgsImV4cCI6MjExMDg1NTAyOH0.h1OiaiDDBn8CxjgOibhUUHx7-ZSyYPHYA83pWRNqlmI';
-    // Turn this on once the Stripe webhook is filling the subscriptions table. While false, signed-in coaches
-    // can use the app without a membership (the status still shows in Account & Sync).
-    const REQUIRE_SUBSCRIPTION = false;
-    // AWeber landing page where coaches buy the monthly plan.
-    const SUBSCRIBE_URL = '';
+    // true = only coaches with an active or trialing membership in the subscriptions table can use the app.
+    // (The Stripe webhook keeps that table up to date. Set to false to let any signed-in coach in.)
+    const REQUIRE_SUBSCRIPTION = true;
+    // Stripe Payment Link where coaches buy the monthly plan.
+    const SUBSCRIBE_URL = 'https://buy.stripe.com/7sY8wQbfY1LLcs72SUbII00';
     // Stripe customer portal login link (Stripe Dashboard → Settings → Billing → Customer portal). Leave blank to hide the button.
     const BILLING_PORTAL_URL = '';
     // How long a coach can keep using the app offline after the last successful membership check.
